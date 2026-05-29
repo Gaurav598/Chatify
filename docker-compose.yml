@@ -1,0 +1,63 @@
+services:
+  app:
+    build: .
+    container_name: chatify-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGO_URI=mongodb://mongo:27017/chatify
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-chatify_dev_secret_change_in_prod}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-chatify_refresh_secret_change}
+      - CLIENT_URL=${CLIENT_URL:-http://localhost:3000}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - chatify-network
+
+  mongo:
+    image: mongo:7
+    container_name: chatify-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - chatify-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatify-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - chatify-network
+
+volumes:
+  mongo-data:
+  redis-data:
+
+networks:
+  chatify-network:
+    driver: bridge
