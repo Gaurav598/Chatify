@@ -3,7 +3,7 @@ services:
     build: .
     container_name: chatify-app
     ports:
-      - "3000:3000"
+      - "3000:3000" # Expose for direct access if needed, though Nginx handles 80
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -17,6 +17,19 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - chatify-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: chatify-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
     restart: unless-stopped
     networks:
       - chatify-network

@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../utils/errors.js";
 import logger from "../config/logger.js";
 import cloudinary from "../config/cloudinary.js";
+import cache from "../config/redis.js";
 
 class MessageService {
   /**
@@ -61,6 +62,13 @@ class MessageService {
     conversation.lastMessageAt = message.createdAt;
     conversation.messageCount += 1;
     await conversation.save();
+
+    // Invalidate conversation cache for all participants
+    if (conversation.participants) {
+      for (const p of conversation.participants) {
+        await cache.delPattern(`conversations:user:${p.userId}:*`);
+      }
+    }
 
     // Populate sender info for real-time delivery
     await message.populate("senderId", "fullName profilePic username");
@@ -285,6 +293,9 @@ class MessageService {
         },
       }
     );
+
+    // Invalidate cache for the reader to refresh unreadCount
+    await cache.delPattern(`conversations:user:${userId}:*`);
   }
 
   /**

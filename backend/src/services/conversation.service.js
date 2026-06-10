@@ -3,6 +3,7 @@ import Message from "../models/Message.js";
 import User from "../models/User.js";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../utils/errors.js";
 import logger from "../config/logger.js";
+import cache from "../config/redis.js";
 
 class ConversationService {
   /**
@@ -10,6 +11,13 @@ class ConversationService {
    */
   async getUserConversations(userId, { page = 1, limit = 50 }) {
     const skip = (page - 1) * limit;
+    const cacheKey = `conversations:user:${userId}:page:${page}:limit:${limit}`;
+
+    // Try to get from cache first
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
 
     const conversations = await Conversation.find({
       "participants.userId": userId,
@@ -42,6 +50,10 @@ class ConversationService {
         };
       })
     );
+
+    // Cache the result for 5 minutes (300 seconds)
+    // We will invalidate this cache when a new message is sent or conversation changes
+    await cache.set(cacheKey, enriched, 300);
 
     return enriched;
   }

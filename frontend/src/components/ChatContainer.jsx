@@ -7,6 +7,7 @@ import MessageInput from "./MessageInput";
 import MessagesLoadingSkeleton from "./MessagesLoadingSkeleton";
 import MessageBubble from "./MessageBubble";
 import { LoaderIcon } from "lucide-react";
+import { Virtuoso } from "react-virtuoso";
 
 function ChatContainer() {
   const {
@@ -21,8 +22,6 @@ function ChatContainer() {
   } = useChatStore();
 
   const { authUser } = useAuthStore();
-  const messageEndRef = useRef(null);
-  const containerRef = useRef(null);
   const [replyingTo, setReplyingTo] = useState(null);
 
   useEffect(() => {
@@ -38,20 +37,10 @@ function ChatContainer() {
     return () => unsubscribeFromMessages();
   }, [selectedUser, getMessages, subscribeToMessages, unsubscribeFromMessages, markAsRead]);
 
-  useEffect(() => {
-    // Scroll to bottom on initial load or new messages if we are on the first page
-    if (messageEndRef.current && (!pagination || pagination.page === 1)) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, pagination]);
-
-  const handleScroll = () => {
-    if (containerRef.current) {
-      const { scrollTop } = containerRef.current;
-      // Fetch more messages when scrolled to top
-      if (scrollTop === 0 && pagination?.hasMore && !isMessagesLoading) {
-        getMessages(selectedUser._id, pagination.page + 1);
-      }
+  // Scroll handling is now managed by Virtuoso
+  const loadMore = () => {
+    if (pagination?.hasMore && !isMessagesLoading) {
+      getMessages(selectedUser._id, pagination.page + 1);
     }
   };
 
@@ -69,11 +58,7 @@ function ChatContainer() {
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-900/30">
       <ChatHeader />
 
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-2 relative"
-      >
+      <div className="flex-1 p-4 relative">
         {isMessagesLoading && messages.length > 0 && (
           <div className="flex justify-center py-2 absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-slate-900/80 to-transparent">
             <LoaderIcon className="w-5 h-5 animate-spin text-cyan-500" />
@@ -81,16 +66,20 @@ function ChatContainer() {
         )}
 
         {messages.length > 0 ? (
-          <div className="max-w-4xl mx-auto flex flex-col justify-end min-h-full pb-4">
-            {messages.map((msg) => (
-              <MessageBubble
-                key={msg._id || msg.createdAt}
-                message={msg}
-                onReply={setReplyingTo}
-              />
-            ))}
-            <div ref={messageEndRef} className="h-1" />
-          </div>
+          <Virtuoso
+            style={{ height: '100%' }}
+            data={messages}
+            firstItemIndex={Math.max(0, (pagination?.total || messages.length) - messages.length)}
+            initialTopMostItemIndex={messages.length - 1}
+            startReached={loadMore}
+            itemContent={(index, msg) => (
+              <div className="max-w-4xl mx-auto px-2">
+                <MessageBubble message={msg} onReply={setReplyingTo} />
+              </div>
+            )}
+            followOutput="smooth"
+            alignToBottom={true}
+          />
         ) : (
           <NoChatHistoryPlaceholder name={selectedUser?.fullName} />
         )}

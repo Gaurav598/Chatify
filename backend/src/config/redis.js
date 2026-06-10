@@ -7,6 +7,8 @@ import logger from "./logger.js";
  */
 
 let redisClient = null;
+let pubClient = null;
+let subClient = null;
 let isRedisAvailable = false;
 
 // In-memory fallback cache
@@ -43,6 +45,11 @@ export async function initRedis() {
     });
 
     await redisClient.connect();
+    
+    // Create pub/sub clients for Socket.IO adapter
+    pubClient = redisClient.duplicate();
+    subClient = redisClient.duplicate();
+    
     isRedisAvailable = true;
     logger.info("Redis connected successfully");
 
@@ -132,6 +139,14 @@ export const cache = {
 
   getClient() {
     return redisClient;
+  },
+
+  getPubClient() {
+    return pubClient;
+  },
+
+  getSubClient() {
+    return subClient;
   },
 
   isAvailable() {

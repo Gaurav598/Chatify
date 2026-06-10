@@ -89,8 +89,8 @@ export const useChatStore = create((set, get) => ({
       _id: tempId,
       senderId: { _id: authUser._id, fullName: authUser.fullName, profilePic: authUser.profilePic },
       text: messageData.text,
-      media: messageData.image ? { url: messageData.image } : undefined,
-      type: messageData.image ? "image" : "text",
+      media: messageData.media ? { url: messageData.media } : messageData.image ? { url: messageData.image } : undefined,
+      type: messageData.type || (messageData.image ? "image" : "text"),
       createdAt: new Date().toISOString(),
       isOptimistic: true,
     };
